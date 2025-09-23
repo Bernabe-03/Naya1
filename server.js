@@ -63,19 +63,28 @@ const connectDB = async () => {
 };
 // Configuration CORS
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://naya-nine.vercel.app','http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:5173', 
+  'https://naya-nine.vercel.app', 
+  'https://naya1.onrender.com'   
 ];
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Autoriser les requêtes sans origin (comme Postman, curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('Origin bloqué par CORS:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
 app.use(express.json());
