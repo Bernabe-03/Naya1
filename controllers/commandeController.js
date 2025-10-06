@@ -4,7 +4,6 @@ import Colis from '../models/Colis.js';
 import Commande from '../models/Commande.js';
 import ManagerInbox from '../models/ManagerInbox.js';
 import { generateCommandeId } from '../models/Counter.js';
-
 export const createCommande = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : req.body.userId || null;
@@ -127,7 +126,6 @@ export const createCommande = async (req, res) => {
     });
   }
 };
-
 export const validateOrderWithPrice = async (req, res) => {
   try {
     const { id } = req.params;
@@ -158,7 +156,6 @@ export const validateOrderWithPrice = async (req, res) => {
     });
   }
 };
-
 export const getCommandes = async (req, res) => {
   try {
     const commandes = await Commande.find()
@@ -179,7 +176,6 @@ export const getCommandes = async (req, res) => {
     });
   }
 };
-
 export const getCommandeById = async (req, res) => {
   try {
     const commande = await Commande.findById(req.params.id)
@@ -205,7 +201,6 @@ export const getCommandeById = async (req, res) => {
     });
   }
 };
-
 export const getCommandeByRef = async (req, res) => {
   try {
     const commande = await Commande.findOne({ commandeId: req.params.ref })
@@ -231,7 +226,6 @@ export const getCommandeByRef = async (req, res) => {
     });
   }
 };
-
 export const getUserCommandes = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -257,7 +251,6 @@ export const getUserCommandes = async (req, res) => {
     });
   }
 };
-
 export const updateCommande = async (req, res) => {
   try {
     const commande = await Commande.findByIdAndUpdate(
@@ -288,7 +281,6 @@ export const updateCommande = async (req, res) => {
     });
   }
 };
-
 export const updateCommandeStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -317,7 +309,6 @@ export const updateCommandeStatus = async (req, res) => {
     });
   }
 };
-
 export const deleteCommande = async (req, res) => {
   try {
     const commande = await Commande.findByIdAndDelete(req.params.id);
