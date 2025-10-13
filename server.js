@@ -65,7 +65,7 @@ const connectDB = async () => {
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173', 
-  'https://naya-nine.vercel.app', 
+  'https://naya-nine.vercel.app',
   'https://naya1.onrender.com'   
 ];
 
@@ -86,6 +86,22 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200
 };
+
+// const corsOptions = {
+//   origin: [
+//   'http://localhost:5173', 
+//   'https://naya-nine.vercel.app'
+//   ],
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: [
+//     'Content-Type', 
+//     'Authorization', 
+//     'Accept',
+//     'X-Requested-With'
+//   ],
+//   optionsSuccessStatus: 200
+// };
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
