@@ -1,4 +1,3 @@
-
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -87,21 +86,6 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// const corsOptions = {
-//   origin: [
-//   'http://localhost:5173', 
-//   'https://naya-nine.vercel.app'
-//   ],
-//   credentials: true,
-//   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-//   allowedHeaders: [
-//     'Content-Type', 
-//     'Authorization', 
-//     'Accept',
-//     'X-Requested-With'
-//   ],
-//   optionsSuccessStatus: 200
-// };
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -327,7 +311,7 @@ app.post('/api/commandes', protect, async (req, res) => {
 
     const destinationDoc = new Destination({
       nomComplet: destination.nomComplet,
-      telephone: destination.telephone,
+      // SUPPRIMÉ: telephone: destination.telephone,
       whatsapp: destination.whatsapp,
       adresse: destination.adresse,
       commandeId
@@ -352,8 +336,6 @@ app.post('/api/commandes', protect, async (req, res) => {
       description: colis.description,
       type: colis.type,
       nombre: colis.nombre,
-      // poids: colis.poids || 0,
-      // dimensions: colis.dimensions || '',
       valeur: colis.valeur || 0,
       assurance: colis.assurance || false,
       dateLivraison: dateLivraisonValide,
@@ -424,7 +406,7 @@ app.post('/api/guest/commandes', optionalProtect, async (req, res) => {
 
     const destinationDoc = new Destination({
       nomComplet: destination.nomComplet,
-      telephone: destination.telephone,
+      // SUPPRIMÉ: telephone: destination.telephone,
       whatsapp: destination.whatsapp,
       adresse: destination.adresse,
       commandeId
@@ -449,8 +431,6 @@ app.post('/api/guest/commandes', optionalProtect, async (req, res) => {
       description: colis.description,
       type: colis.type,
       nombre: colis.nombre,
-      // poids: colis.poids || 0,
-      // dimensions: colis.dimensions || '',
       valeur: colis.valeur || 0,
       assurance: colis.assurance || false,
       dateLivraison: dateLivraisonValide,

@@ -1,4 +1,3 @@
-
 import Expedition from '../models/Expedition.js';
 import Destination from '../models/Destination.js';
 import Colis from '../models/Colis.js';
@@ -27,10 +26,9 @@ export const createCommande = async (req, res) => {
     if (!expedition?.nomComplet) errors.push("Le nom de l'expéditeur est requis");
     if (!expedition?.telephone) errors.push("Le téléphone de l'expéditeur est requis");
     if (!destination?.nomComplet) errors.push("Le nom du destinataire est requis");
-    if (!destination?.telephone) errors.push("Le téléphone du destinataire est requis");
+    // SUPPRIMÉ: Validation du téléphone du destinataire
     if (!destination?.whatsapp) errors.push("Le WhatsApp du destinataire est requis");
     if (!destination?.adresse) errors.push("L'adresse de destination est requise");
-    // SUPPRIMÉ: Validation de la description
     if (!colis?.dateLivraison) errors.push("La date de livraison est requise");
     if (!colis?.heureLivraison) errors.push("L'heure de livraison est requise");
     if (!acceptCGU) errors.push("Vous devez accepter les conditions générales d'utilisation");
@@ -56,14 +54,14 @@ export const createCommande = async (req, res) => {
 
     const destinationDoc = new Destination({
       nomComplet: destination.nomComplet.trim(),
-      telephone: destination.telephone,
-      whatsapp: destination.whatsapp,
+      // SUPPRIMÉ: telephone: destination.telephone,
+      whatsapp: destination.whatsapp, // seulement WhatsApp
       adresse: destination.adresse?.trim() || "Adresse non spécifiée",
       commandeId
     });
 
     const colisDoc = new Colis({
-      description: colis.description, // PLUS de trim()
+      description: colis.description,
       type: colis.type || "Plis",
       nombre: Number(colis.nombre) || 1,
       valeur: Number(colis.valeur) || 0,
