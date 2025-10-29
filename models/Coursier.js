@@ -1,38 +1,29 @@
 import mongoose from 'mongoose';
 
-const coursierSchema = mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
+const coursierSchema = new mongoose.Schema({
+  nomComplet: {
+    type: String,
+    required: [true, 'Le nom complet est obligatoire'],
+    trim: true
   },
-  name: { 
-    type: String, 
-    required: true 
+  telephone: {
+    type: String,
+    required: [true, 'Le numéro de téléphone est obligatoire'],
+    unique: true,
+    trim: true
   },
-  phone: { 
-    type: String, 
-    required: true 
-  },
-  email: { 
-    type: String 
-  },
-  adresse: { 
-    type: String 
-  },
-  status: { 
-    type: String, 
-    enum: ['Disponible', 'En livraison', 'Indisponible'], 
-    default: 'Disponible' 
-  },
-  position: {
-    lat: { type: Number },
-    lng: { type: Number }
+  statut: {
+    type: String,
+    enum: {
+      values: ['actif', 'inactif', 'congé', 'suspendu'],
+      message: 'Le statut doit être actif, inactif, congé ou suspendu'
+    },
+    default: 'actif'
   }
 }, {
   timestamps: true
 });
+// Index pour le téléphone
+coursierSchema.index({ telephone: 1 }, { unique: true });
 
-const Coursier = mongoose.model('Coursier', coursierSchema);
-
-export default Coursier;
+export default mongoose.model('Coursier', coursierSchema);

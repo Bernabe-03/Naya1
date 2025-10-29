@@ -1,31 +1,62 @@
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
-
-  fullName: { 
-    type: String, 
-    required: true },
-
-  phone: {
-     type: String, 
-     required: true, 
-     unique: true 
-    },
-
-  email: { type: String },
-  adresse: { type: String },
-  password: { type: String,
-     required: true },
-  role: { 
-    type: String, 
-    enum: ['client', 'manager'], 
-    default: 'client' 
+const managerInboxSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    required: true,
+    enum: ['commande']
   },
-  profilePhoto: { type: String },
-  createdAt: { type: Date, default: Date.now }
+  action: {
+    type: String,
+    required: true,
+    enum: ['assignation_coursier', 'annulation']
+  },
+  commandeId: {
+    type: String,
+    required: true
+  },
+  client: {
+    type: String,
+    required: true
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  details: {
+    type: String,
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'done'],
+    default: 'done'
+  },
+  // Nouveaux champs pour l'historique complet
+  coursier: {
+    nom: String,
+    telephone: String,
+    vehicule: String
+  },
+  expedition: {
+    nomComplet: String,
+    telephone: String,
+    adresse: String
+  },
+  destination: {
+    nomComplet: String,
+    whatsapp: String,
+    adresse: String
+  },
+  colis: {
+    description: String,
+    type: String,
+    dateLivraison: Date,
+    heureLivraison: String
+  },
+  messageEnvoye: String
+}, {
+  timestamps: true
 });
 
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-
-export default User;
-
+export default mongoose.model('ManagerInbox', managerInboxSchema);
