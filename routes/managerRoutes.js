@@ -4,34 +4,42 @@ import {
   addToManagerInbox,
   getPendingOrders,
   assignCoursier,
+  validateOrder,
   cancelOrder,
   getTrash,
   restoreFromTrash,
   emptyTrash,
   moveToTrash,
-  validateOrder,
   getCoursiers,
   createCoursier,
   updateCoursier,
   updateCoursierStatus,
-  deleteCoursier
+  deleteCoursier,
+  getOrderHistory,
+  getRestoredOrders
 } from '../controllers/managerController.js';
 
 const router = express.Router();
 
-// Routes existantes
+// Routes inbox
 router.get('/inbox', getManagerInbox);
 router.post('/inbox', addToManagerInbox);
+
+// Routes commandes
 router.get('/orders/pending', getPendingOrders);
+router.get('/orders/history', getOrderHistory);
+router.get('/orders/restored', getRestoredOrders);
 router.patch('/orders/:id/assign-coursier', assignCoursier);
 router.patch('/orders/:id/validate', validateOrder);
 router.patch('/orders/:id/cancel', cancelOrder);
+
+// Routes corbeille
 router.get('/trash', getTrash);
 router.patch('/trash/:id/restore', restoreFromTrash);
 router.delete('/trash', emptyTrash);
 router.post('/move-to-trash', moveToTrash);
 
-// Routes coursiers - CORRIGÉES
+// Routes coursiers
 router.get('/coursiers', getCoursiers);
 router.post('/coursiers', createCoursier);
 router.put('/coursiers/:id', updateCoursier);

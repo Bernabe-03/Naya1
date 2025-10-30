@@ -3,24 +3,47 @@ import Commande from '../models/Commande.js';
 import TrashItem from '../models/TrashItem.js';
 import Coursier from '../models/Coursier.js';
 
-// CORRECTION : Fonction getCoursiers simplifiée et robuste
+// Fonction getCoursiers simplifiée et robuste
 export const getCoursiers = async (req, res) => {
   try {
     console.log('🔍 Début récupération coursiers...');
     const coursiers = await Coursier.find().sort({ nomComplet: 1 });
     console.log(`✅ ${coursiers.length} coursiers trouvés`);
     
+    // FORMAT UNIFORME pour le frontend
     res.json({
       success: true,
       data: coursiers,
-      count: coursiers.length
+      count: coursiers.length,
+      message: `${coursiers.length} coursiers récupérés avec succès`
     });
   } catch (error) {
-    console.error('❌ Erreur détaillée récupération coursiers:', error);
+    console.error('❌ Erreur récupération coursiers:', error);
+    
     res.status(500).json({ 
       success: false,
-      error: 'Erreur interne du serveur',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'Une erreur est survenue'
+      data: [],
+      count: 0,
+      error: 'Erreur interne du serveur'
+    });
+  }
+};
+
+// Même format pour l'historique
+export const getManagerInbox = async (req, res) => {
+  try {
+    const items = await ManagerInbox.find().sort({ date: -1 });
+    res.json({
+      success: true,
+      data: items,
+      count: items.length
+    });
+  } catch (error) {
+    console.error('Erreur récupération inbox:', error);
+    res.status(500).json({ 
+      success: false,
+      data: [],
+      error: 'Erreur serveur' 
     });
   }
 };
@@ -30,7 +53,6 @@ export const createCoursier = async (req, res) => {
   try {
     const { nomComplet, telephone, statut } = req.body;
 
-    // Validation
     if (!nomComplet || nomComplet.trim() === '') {
       return res.status(400).json({
         success: false,
@@ -45,7 +67,6 @@ export const createCoursier = async (req, res) => {
       });
     }
 
-    // Nettoyer le numéro de téléphone
     const cleanedPhone = telephone.replace(/\D/g, '');
     
     const coursier = new Coursier({
@@ -246,14 +267,62 @@ export const deleteCoursier = async (req, res) => {
   }
 };
 
-// Vos autres fonctions existantes...
-export const getManagerInbox = async (req, res) => {
+// Fonction pour récupérer l'historique des commandes traitées - CORRIGÉE
+export const getOrderHistory = async (req, res) => {
   try {
-    const items = await ManagerInbox.find().sort({ date: -1 });
-    res.json(items);
+    console.log('📋 Récupération historique commandes...');
+    
+    // Récupérer toutes les commandes qui ne sont plus "En attente"
+    const commandes = await Commande.find({ 
+      status: { $ne: 'En attente' } 
+    })
+      .populate('expedition')
+      .populate('destination')
+      .populate('colis')
+      .sort({ updatedAt: -1 });
+
+    console.log(`✅ ${commandes.length} commandes dans l'historique`);
+    
+    res.json({
+      success: true,
+      data: commandes,
+      count: commandes.length,
+      message: `${commandes.length} commandes récupérées de l'historique`
+    });
   } catch (error) {
-    console.error('Erreur récupération inbox:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('❌ Erreur récupération historique:', error);
+    res.status(500).json({ 
+      success: false,
+      data: [],
+      count: 0,
+      error: 'Erreur lors de la récupération de l\'historique'
+    });
+  }
+};
+
+// NOUVEAU : Fonction pour récupérer les commandes restaurées
+export const getRestoredOrders = async (req, res) => {
+  try {
+    console.log('🔄 Récupération des commandes restaurées...');
+    
+    // Récupérer les commandes qui ont été restaurées
+    const commandes = await Commande.find({ 
+      restored: true,
+      status: 'En attente'
+    })
+      .populate('expedition')
+      .populate('destination')
+      .populate('colis')
+      .sort({ restoredAt: -1 });
+
+    console.log(`✅ ${commandes.length} commandes restaurées trouvées`);
+    
+    res.json(commandes);
+  } catch (error) {
+    console.error('❌ Erreur récupération commandes restaurées:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération des commandes restaurées' 
+    });
   }
 };
 
@@ -279,7 +348,10 @@ export const addToManagerInbox = async (req, res) => {
 
 export const getPendingOrders = async (req, res) => {
   try {
-    const commandes = await Commande.find({ status: 'En attente' })
+    const commandes = await Commande.find({ 
+      status: 'En attente',
+      restored: { $ne: true } // Exclure les commandes restaurées
+    })
       .populate('expedition')
       .populate('destination')
       .populate('colis')
@@ -297,11 +369,8 @@ export const assignCoursier = async (req, res) => {
     const { id } = req.params;
     const { coursier, status } = req.body;
 
-    if (!coursier || !coursier.nom || !coursier.telephone) {
-      return res.status(400).json({
-        error: "Les informations du coursier sont obligatoires"
-      });
-    }
+    // Suppression du bloc :
+    // if (!coursier || !coursier.nomComplet || !coursier.telephone) { ... }
 
     const commande = await Commande.findById(id)
       .populate('expedition')
@@ -313,8 +382,10 @@ export const assignCoursier = async (req, res) => {
       return res.status(404).json({ error: "Commande non trouvée" });
     }
 
+    // Mise à jour de la commande
     commande.status = status || "En cours";
-    commande.coursier = coursier;
+    commande.coursier = coursier; 
+    commande.dateAssignation = new Date();
     await commande.save();
 
     const messagePourDestinataire = `🚚 **NAYA LIVRAISON - VOTRE COMMANDE EST EN ROUTE !** 🚚
@@ -330,7 +401,7 @@ Nous sommes ravis de vous informer que votre commande #${commande.commandeId} a 
 • Type de colis : ${commande.colis?.type || 'Non spécifié'}
 
 👨‍💼 **VOTRE COURSIER :**
-• Nom : ${coursier.nom}
+• Nom : ${coursier.nomComplet}
 • Téléphone : ${coursier.telephone}
 
 📅 **LIVRAISON PRÉVUE :**
@@ -346,13 +417,14 @@ Merci pour votre confiance ! ✨
 
 — L'équipe NAYA Livraison`;
 
+    // Enregistrement Inbox Historique
     const inboxItem = new ManagerInbox({
       type: 'commande',
       action: 'assignation_coursier',
       commandeId: commande.commandeId,
       client: commande.expedition?.nomComplet || 'Client inconnu',
       date: new Date(),
-      details: `Coursier assigné: ${coursier.nom} (${coursier.telephone})`,
+      details: `Coursier assigné: ${coursier.nomComplet} (${coursier.telephone})`,
       status: 'done',
       coursier: coursier,
       expedition: {
@@ -373,12 +445,12 @@ Merci pour votre confiance ! ✨
       },
       messageEnvoye: messagePourDestinataire
     });
-    
+
     await inboxItem.save();
 
     res.json({
       success: true,
-      message: "Coursier assigné avec succès",
+      message: "Coursier assigné avec succès et commande déplacée dans l'historique",
       commande,
       whatsappMessage: messagePourDestinataire
     });
@@ -391,6 +463,7 @@ Merci pour votre confiance ! ✨
     });
   }
 };
+
 
 export const validateOrder = async (req, res) => {
   try {
@@ -526,17 +599,27 @@ export const restoreFromTrash = async (req, res) => {
       return res.status(404).json({ error: 'Élément non trouvé' });
     }
 
-    switch (trashItem.itemType) {
-      case 'inbox':
-        await ManagerInbox.create(trashItem.data);
-        break;
-      case 'commande':
-        await Commande.create(trashItem.data);
-        break;
+    let restoredItem;
+
+    if (trashItem.itemType === 'commande') {
+      // Restaurer la commande avec le marqueur restored
+      restoredItem = await Commande.create({
+        ...trashItem.data,
+        _id: undefined, // Laisser MongoDB générer un nouvel ID
+        restored: true,
+        restoredAt: new Date(),
+        status: 'En attente'
+      });
+    } else {
+      return res.status(400).json({ error: 'Type non supporté' });
     }
 
     await TrashItem.findByIdAndDelete(id);
-    res.json({ message: 'Élément restauré avec succès' });
+    
+    res.json({ 
+      message: 'Élément restauré avec succès',
+      restoredOrder: restoredItem 
+    });
   } catch (error) {
     console.error('Erreur restauration élément:', error);
     res.status(500).json({ error: 'Erreur serveur' });

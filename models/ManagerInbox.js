@@ -11,6 +11,7 @@ const managerInboxSchema = new mongoose.Schema({
     required: true,
     enum: ['assignation_coursier', 'annulation']
   },
+  
   commandeId: {
     type: String,
     required: true
