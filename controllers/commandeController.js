@@ -1,227 +1,346 @@
-import ManagerInbox from '../models/ManagerInbox.js';
+import Expedition from '../models/Expedition.js';
+import Destination from '../models/Destination.js';
+import Colis from '../models/Colis.js';
 import Commande from '../models/Commande.js';
-import TrashItem from '../models/TrashItem.js';
+import ManagerInbox from '../models/ManagerInbox.js';
+import { generateCommandeId } from '../models/Counter.js';
 
-export const getManagerInbox = async (req, res) => {
+/**
+ * 📦 Crée une nouvelle commande (Version corrigée)
+ */
+export const createCommande = async (req, res) => {
   try {
-    const items = await ManagerInbox.find().sort({ date: -1 });
-    res.json(items);
-  } catch (error) {
-    console.error('Erreur récupération inbox:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-};
+    // 🔧 CORRECTION: Gérer explicitement l'absence d'utilisateur
+    const userId = req.user?._id || null;
 
-export const addToManagerInbox = async (req, res) => {
-  try {
-    const newItem = new ManagerInbox(req.body);
-    await newItem.save();
-    res.status(201).json(newItem);
-  } catch (error) {
-    console.error('Erreur création item inbox:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-};
+    console.log('📥 Création commande - User ID:', userId);
 
-export const getPendingOrders = async (req, res) => {
-  try {
-    const orders = await Commande.find({ status: 'En attente' })
-      .populate('expedition')
-      .populate('destination')
-      .populate('colis')
-      .populate('userId');
+    const { 
+      status = 'En attente',
+      expedition, 
+      destination, 
+      colis, 
+      acceptCGU 
+    } = req.body;
+
+    console.log('📦 Données reçues:', { expedition, destination, colis, acceptCGU });
+
+    const errors = [];
+
+    // Validation renforcée
+    if (!expedition?.nomComplet?.trim()) errors.push("Le nom de l'expéditeur est requis");
+    if (!expedition?.telephone?.trim()) errors.push("Le téléphone de l'expéditeur est requis");
+    if (!expedition?.adresse?.trim()) errors.push("L'adresse de l'expéditeur est requise");
+    
+    if (!destination?.nomComplet?.trim()) errors.push("Le nom du destinataire est requis");
+    if (!destination?.whatsapp?.trim()) errors.push("Le WhatsApp du destinataire est requis");
+    if (!destination?.adresse?.trim()) errors.push("L'adresse de destination est requise");
+    
+    if (!colis?.description?.trim()) errors.push("La description du colis est requise");
+    if (!colis?.nombre || colis.nombre <= 0) errors.push("Le nombre de colis doit être supérieur à zéro");
+    if (!colis?.dateLivraison) errors.push("La date de livraison est requise");
+    if (!colis?.heureLivraison) errors.push("L'heure de livraison est requise");
+    
+    if (!acceptCGU) errors.push("Vous devez accepter les conditions générales d'utilisation");
+
+    if (errors.length > 0) {
+      console.log('❌ Erreurs de validation:', errors);
+      return res.status(400).json({
+        success: false,
+        message: "Champs obligatoires manquants",
+        errors
+      });
+    }
+
+    // Générer l'ID commande
+    const commandeId = await generateCommandeId();
+    console.log('🆔 Commande ID généré:', commandeId);
+
+    // Préparation des données
+    const expeditionData = {
+      nomComplet: expedition.nomComplet.trim(),
+      telephone: expedition.telephone,
+      adresse: expedition.adresse.trim(),
+      commandeId
+    };
+
+    const destinationData = {
+      nomComplet: destination.nomComplet.trim(),
+      whatsapp: destination.whatsapp,
+      adresse: destination.adresse.trim(),
+      commandeId
+    };
+
+    const colisData = {
+      description: colis.description,
+      type: colis.type || "Colis",
+      nombre: Number(colis.nombre) || 1,
+      valeur: colis.valeur ? Number(colis.valeur) : 0,
+      assurance: colis.assurance || false,
+      dateLivraison: new Date(colis.dateLivraison),
+      heureLivraison: colis.heureLivraison,
+      instructions: colis.instructions?.trim() || "",
+      commandeId
+    };
+
+    console.log('💾 Sauvegarde des sous-documents...');
+
+    // Sauvegarde en parallèle avec gestion d'erreur
+    let savedExpedition, savedDestination, savedColis;
+    
+    try {
+      [savedExpedition, savedDestination, savedColis] = await Promise.all([
+        new Expedition(expeditionData).save(),
+        new Destination(destinationData).save(),
+        new Colis(colisData).save()
+      ]);
+    } catch (saveError) {
+      console.error('❌ Erreur sauvegarde sous-documents:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: "Erreur lors de la sauvegarde des données",
+        error: saveError.message
+      });
+    }
+
+    console.log('✅ Sous-documents sauvegardés');
+
+    // Création de la commande principale
+    const commandeData = {
+      userId,
+      commandeId,
+      status,
+      expedition: savedExpedition._id,
+      destination: savedDestination._id,
+      colis: savedColis._id,
+      acceptCGU
+    };
+
+    let savedCommande;
+    try {
+      savedCommande = await new Commande(commandeData).save();
+      console.log('✅ Commande principale sauvegardée:', savedCommande._id);
+    } catch (commandeError) {
+      console.error('❌ Erreur sauvegarde commande:', commandeError);
       
-    res.json(orders);
-  } catch (error) {
-    console.error('Erreur récupération commandes en attente:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-};
+      // Nettoyer les sous-documents en cas d'échec
+      await Promise.allSettled([
+        Expedition.findByIdAndDelete(savedExpedition._id),
+        Destination.findByIdAndDelete(savedDestination._id),
+        Colis.findByIdAndDelete(savedColis._id)
+      ]);
+      
+      throw commandeError;
+    }
 
-// Nouvelle fonction pour assigner un coursier
-export const assignCoursier = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { coursier, status } = req.body;
-
-    // Récupérer la commande avec les données liées
-    const commande = await Commande.findById(id)
+    // Population des données
+    const commandeComplete = await Commande.findById(savedCommande._id)
       .populate('expedition')
       .populate('destination')
-      .populate('colis')
-      .populate('userId');
+      .populate('colis');
 
-    if (!commande) {
-      return res.status(404).json({ error: "Commande non trouvée" });
+    // Historique Manager (optionnel)
+    try {
+      await new ManagerInbox({
+        type: 'commande',
+        action: 'creation',
+        commandeId,
+        client: expedition.nomComplet,
+        date: new Date(),
+        details: `Nouvelle commande ${commandeId} créée ${userId ? '(utilisateur connecté)' : '(invité)'}`,
+        status: 'pending'
+      }).save();
+      console.log('✅ Historique manager créé');
+    } catch (inboxError) {
+      console.warn('⚠️ Erreur création historique manager:', inboxError);
+      // Ne pas bloquer la réponse pour cette erreur
     }
 
-    // Mettre à jour la commande avec les informations du coursier
-    commande.status = status || "Assignée";
-    commande.coursier = coursier;
-    commande.dateAssignation = new Date();
-    
-    await commande.save();
-
-    res.json({ 
+    // Réponse finale
+    res.status(201).json({
       success: true,
-      message: "Coursier assigné avec succès",
-      commande
+      message: userId ? "Commande créée avec succès" : "Commande invité créée avec succès",
+      commande: commandeComplete
     });
 
   } catch (error) {
-    console.error("Erreur assignation coursier:", error);
+    console.error("❌ Erreur création commande:", error);
     
-    let errorMessage = "Erreur serveur lors de l'assignation du coursier";
-    
+    // Gestion spécifique des erreurs
     if (error.name === 'ValidationError') {
-      errorMessage = "Erreur de validation des données";
-    } else if (error.name === 'CastError') {
-      errorMessage = "ID de commande invalide";
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: "Erreur de validation des données",
+        errors
+      });
     }
-    
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Une commande avec cet ID existe déjà"
+      });
+    }
+
     res.status(500).json({
-      error: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      success: false,
+      message: "Erreur serveur lors de la création de la commande",
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Erreur interne'
     });
   }
 };
-
-export const cancelOrder = async (req, res) => {
+// Les autres fonctions restent inchangées...
+export const validateOrderWithPrice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
-    
-    const commande = await Commande.findById(id)
-      .populate('expedition')
-      .populate('destination');
-    
-    if (!commande) {
-      return res.status(404).json({ error: 'Commande non trouvée' });
-    }
-    
-    const updatedCommande = await Commande.findByIdAndUpdate(
+    const { price } = req.body;
+
+    const commande = await Commande.findByIdAndUpdate(
       id,
       { 
-        status: 'Annulée',
-        dateAnnulation: new Date(),
-        annulationReason: reason
+        status: "Confirmée",
+        "paiement.montant": price,
+        "paiement.mode": "espèces"
       },
       { new: true }
     );
-    
-    // Sauvegarder dans l'historique avec toutes les informations
-    const inboxItem = new ManagerInbox({
-      type: 'commande',
-      action: 'annulation',
-      commandeId: updatedCommande.commandeId,
-      client: commande.expedition?.nomComplet || "Client inconnu",
-      date: new Date(),
-      details: `Commande annulée - Motif: ${reason || 'Non spécifié'}`,
-      status: 'done',
-      expedition: {
-        nomComplet: commande.expedition?.nomComplet,
-        telephone: commande.expedition?.telephone,
-        adresse: commande.expedition?.adresse
-      },
-      destination: {
-        nomComplet: commande.destination?.nomComplet,
-        whatsapp: commande.destination?.whatsapp,
-        adresse: commande.destination?.adresse
-      },
-      colis: {
-        description: commande.colis?.description,
-        type: commande.colis?.type,
-        dateLivraison: commande.colis?.dateLivraison,
-        heureLivraison: commande.colis?.heureLivraison
-      }
+
+    if (!commande)
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
+
+    res.status(200).json({ success: true, commande });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getCommandes = async (req, res) => {
+  try {
+    const commandes = await Commande.find()
+      .populate('expedition destination colis')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: commandes.length,
+      commandes
     });
-    
-    await inboxItem.save();
-
-    res.json(updatedCommande);
   } catch (error) {
-    console.error('Erreur annulation commande:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const getTrash = async (req, res) => {
+export const getCommandeById = async (req, res) => {
   try {
-    const trashItems = await TrashItem.find().sort({ deletedAt: -1 });
-    res.json(trashItems);
+    const commande = await Commande.findById(req.params.id)
+      .populate('expedition destination colis');
+
+    if (!commande)
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
+
+    res.status(200).json({ success: true, commande });
   } catch (error) {
-    console.error('Erreur récupération corbeille:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const restoreFromTrash = async (req, res) => {
+export const getCommandeByRef = async (req, res) => {
   try {
-    const { id } = req.params;
-    const trashItem = await TrashItem.findById(id);
-    
-    if (!trashItem) {
-      return res.status(404).json({ error: 'Élément non trouvé' });
-    }
+    const commande = await Commande.findOne({ commandeId: req.params.ref })
+      .populate('expedition destination colis');
 
-    switch (trashItem.itemType) {
-      case 'inbox':
-        await ManagerInbox.create(trashItem.data);
-        break;
-      case 'commande':
-        await Commande.create(trashItem.data);
-        break;
-    }
+    if (!commande)
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
 
-    await TrashItem.findByIdAndDelete(id);
-    res.json({ message: 'Élément restauré avec succès' });
+    res.status(200).json({ success: true, commande });
   } catch (error) {
-    console.error('Erreur restauration élément:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const emptyTrash = async (req, res) => {
+export const getUserCommandes = async (req, res) => {
   try {
-    await TrashItem.deleteMany({});
-    res.json({ message: 'Corbeille vidée avec succès' });
+    const { userId } = req.params;
+
+    const commandes = await Commande.find({ userId })
+      .populate('expedition destination colis')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formatted = commandes.map(cmd => ({
+      ...cmd,
+      date: cmd.createdAt
+    }));
+
+    res.json({ success: true, commandes: formatted });
   } catch (error) {
-    console.error('Erreur vidage corbeille:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error("Erreur lors de la récupération des commandes:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const moveToTrash = async (req, res) => {
+export const updateCommande = async (req, res) => {
   try {
-    const { itemId, itemType } = req.body;
-    
-    let itemData;
-    switch (itemType) {
-      case 'inbox':
-        itemData = await ManagerInbox.findByIdAndDelete(itemId);
-        break;
-      case 'commande':
-        itemData = await Commande.findByIdAndDelete(itemId);
-        break;
-      default:
-        return res.status(400).json({ error: 'Type invalide' });
-    }
+    const commande = await Commande.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('expedition destination colis');
 
-    if (!itemData) {
-      return res.status(404).json({ error: 'Élément non trouvé' });
-    }
+    if (!commande)
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
 
-    const trashItem = new TrashItem({
-      itemType,
-      itemId,
-      data: itemData.toObject(),
-      deletedAt: new Date()
+    res.status(200).json({
+      success: true,
+      message: "Commande mise à jour avec succès",
+      commande
     });
-
-    await trashItem.save();
-    res.json({ message: 'Élément déplacé dans la corbeille' });
   } catch (error) {
-    console.error('Erreur déplacement corbeille:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateCommandeStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const commande = await Commande.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+
+    if (!commande)
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
+
+    res.status(200).json({
+      success: true,
+      message: "Statut de commande mis à jour",
+      commande
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteCommande = async (req, res) => {
+  try {
+    const commande = await Commande.findByIdAndDelete(req.params.id);
+
+    if (!commande)
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
+
+    await Promise.all([
+      Expedition.deleteOne({ commandeId: commande.commandeId }),
+      Destination.deleteOne({ commandeId: commande.commandeId }),
+      Colis.deleteOne({ commandeId: commande.commandeId })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Commande et données associées supprimées avec succès"
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

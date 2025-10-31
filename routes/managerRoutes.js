@@ -16,7 +16,8 @@ import {
   updateCoursierStatus,
   deleteCoursier,
   getOrderHistory,
-  getRestoredOrders
+  getRestoredOrders,
+  markOrderAsViewed
 } from '../controllers/managerController.js';
 
 const router = express.Router();
@@ -32,7 +33,7 @@ router.get('/orders/restored', getRestoredOrders);
 router.patch('/orders/:id/assign-coursier', assignCoursier);
 router.patch('/orders/:id/validate', validateOrder);
 router.patch('/orders/:id/cancel', cancelOrder);
-
+router.patch('/orders/:id/mark-viewed', markOrderAsViewed);
 // Routes corbeille
 router.get('/trash', getTrash);
 router.patch('/trash/:id/restore', restoreFromTrash);

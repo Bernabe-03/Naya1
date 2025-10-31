@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import {
   createCommande,
@@ -10,14 +9,24 @@ import {
   updateCommandeStatus,
   deleteCommande
 } from '../controllers/commandeController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, optionalProtect } from '../middleware/authMiddleware.js'; 
 
 const router = Router();
 
-//middleware d'authentification aux routes
+// 🔧 CORRECTION: Ajout de logs pour le débogage
+router.use((req, res, next) => {
+  console.log(`📦 CommandeRouter: ${req.method} ${req.path}`);
+  next();
+});
+
+// Routes principales
 router.route('/')
-  .post(protect, createCommande)
+  .post(protect, createCommande) 
   .get(protect, getCommandes);
+
+// 🔧 CORRECTION: Route guest bien définie
+router.route('/guest')
+  .post(optionalProtect, createCommande);
 
 router.route('/user/:userId')
   .get(protect, getUserCommandes);

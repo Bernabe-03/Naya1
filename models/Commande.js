@@ -42,13 +42,6 @@ const commandeSchema = new mongoose.Schema({
       type: String,
       enum: ['espèces', 'mobile money', 'carte bancaire']
     },
-    restored: {
-      type: Boolean,
-      default: false
-    },
-    restoredAt: {
-      type: Date
-    },
     status: {
       type: String,
       enum: ['En attente', 'Validée', 'Annulée', 'Livrée'],

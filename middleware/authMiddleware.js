@@ -180,32 +180,80 @@ export const managerProtect = async (req, res, next) => {
 // Middleware principal
 export const protect = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    let token = req.headers.authorization;
+    
+    console.log('🔐 Middleware protect appelé - Token reçu:', token ? 'Oui' : 'Non');
+    
+    if (token && token.startsWith('Bearer ')) {
+      token = token.slice(7);
+    }
     
     if (!token) {
-      return res.status(401).json({ message: "Token manquant" });
+      console.log('❌ Aucun token trouvé');
+      return res.status(401).json({ 
+        success: false,
+        message: "Accès non autorisé - Token manquant" 
+      });
     }
-
+    
+    // Vérifier le token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    console.log('✅ Token décodé:', decoded);
+    
+    // Trouver l'utilisateur
+    const user = await User.findById(decoded.userId).select('-password');
     
     if (!user) {
-      return res.status(401).json({ message: "Utilisateur non trouvé" });
+      console.log('❌ Utilisateur non trouvé');
+      return res.status(401).json({ 
+        success: false,
+        message: "Utilisateur non trouvé" 
+      });
     }
-
-    req.user = user;
+    
+    req.user = {
+      _id: user._id,
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email,
+      adresse: user.adresse,
+      role: user.role
+    };
+    
+    console.log('✅ Utilisateur authentifié:', user.fullName, user.role);
     next();
   } catch (error) {
-    console.error(error);
-    res.status(401).json({ message: "Token invalide" });
+    console.error('❌ Erreur middleware protect:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false,
+        message: "Session expirée - Veuillez vous reconnecter" 
+      });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false,
+        message: "Token invalide" 
+      });
+    }
+    
+    return res.status(401).json({ 
+      success: false,
+      message: "Erreur d'authentification" 
+    });
   }
 };
-
 export const optionalProtect = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    let token = req.headers.authorization;
     
-    if (token) {
+    console.log('🔐 Middleware optionalProtect - Token reçu:', token ? 'Oui' : 'Non');
+    
+    if (token && token.startsWith('Bearer ')) {
+      token = token.slice(7);
+      
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.userId).select('-password');
@@ -219,14 +267,21 @@ export const optionalProtect = async (req, res, next) => {
             adresse: user.adresse,
             role: user.role
           };
+          console.log('✅ Utilisateur authentifié (optionnel):', user.fullName);
         }
-      } catch (error) {
-        console.log('Token invalide, commande en tant qu\'invité');
+      } catch (tokenError) {
+        console.log('⚠️ Token invalide, continuation en tant qu\'invité');
+        // Ne pas bloquer la requête, continuer sans utilisateur
       }
+    } else {
+      console.log('🔓 Aucun token, continuation en tant qu\'invité');
     }
+    
+    // Si pas de token ou token invalide, req.user reste undefined
     next();
   } catch (error) {
-    console.error('Erreur authentification optionnelle:', error);
+    console.error('❌ Erreur middleware optionalProtect:', error);
+    // En cas d'erreur grave, continuer quand même
     next();
   }
 };
