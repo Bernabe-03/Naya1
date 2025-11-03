@@ -9,9 +9,8 @@ const managerInboxSchema = new mongoose.Schema({
   action: {
     type: String,
     required: true,
-    enum: ['assignation_coursier', 'annulation']
+    enum: ['assignation_coursier', 'annulation', 'validation']
   },
-  
   commandeId: {
     type: String,
     required: true
@@ -33,9 +32,9 @@ const managerInboxSchema = new mongoose.Schema({
     enum: ['pending', 'done'],
     default: 'done'
   },
-  // Nouveaux champs pour l'historique complet
+  // ⭐ CORRECTION : Utiliser nomComplet au lieu de nom ⭐
   coursier: {
-    nom: String,
+    nomComplet: String,  // Changé de 'nom' à 'nomComplet'
     telephone: String,
     vehicule: String
   },
@@ -55,9 +54,9 @@ const managerInboxSchema = new mongoose.Schema({
     dateLivraison: Date,
     heureLivraison: String
   },
-  messageEnvoye: String
+  messageEnvoye: String,
+  price: Number
 }, {
   timestamps: true
 });
-
 export default mongoose.model('ManagerInbox', managerInboxSchema);

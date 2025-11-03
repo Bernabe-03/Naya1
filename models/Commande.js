@@ -1,5 +1,5 @@
-
 import mongoose from 'mongoose';
+
 const commandeSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -33,6 +33,22 @@ const commandeSchema = new mongoose.Schema({
     ref: 'Colis',
     required: true
   },
+  // ⭐ AJOUT DU CHAMP COURSIER MANQUANT ⭐
+  coursier: {
+    nomComplet: String,
+    telephone: String
+  },
+  dateAssignation: Date,
+  viewed: {
+    type: Boolean,
+    default: false
+  },
+  viewedAt: Date,
+  restored: {
+    type: Boolean,
+    default: false
+  },
+  restoredAt: Date,
   prix: {
     type: Number,
     default: 0
@@ -50,20 +66,20 @@ const commandeSchema = new mongoose.Schema({
     montant: Number,
     dateValidation: Date
   },
-    acceptCGU: {
-      type: Boolean,
-      required: [true, "L'acceptation des CGU est obligatoire"]
-    },
-    prixLivraison: Number,
-    dateValidation: Date,
-    dateAnnulation: Date,
-    transactionId: String
+  acceptCGU: {
+    type: Boolean,
+    required: [true, "L'acceptation des CGU est obligatoire"]
   },
-{
+  prixLivraison: Number,
+  dateValidation: Date,
+  dateAnnulation: Date,
+  annulationReason: String,
+  transactionId: String
+}, {
   timestamps: true,
   versionKey: false
 });
+
 const Commande = mongoose.model('Commande', commandeSchema);
 
 export default Commande;
-

@@ -105,6 +105,23 @@ app.use((req, res, next) => {
 app.use('/api/commandes', commandeRouter);
 app.use('/api/manager', managerRouter);
 
+// Route de test pour vérifier l'API commandes
+app.get('/api/commandes/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'API Commandes fonctionne correctement',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Route de test spécifique pour guest
+app.get('/api/commandes/guest/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'API Commandes Guest fonctionne correctement',
+    timestamp: new Date().toISOString()
+  });
+});
 // 🔧 CORRECTION: Route de test pour vérifier que l'API fonctionne
 app.get('/api/test', (req, res) => {
   res.json({ 
