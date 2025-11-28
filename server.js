@@ -29,15 +29,12 @@ import {
   protect,
   optionalProtect 
 } from './middleware/authMiddleware.js';
-
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 // Configuration de Multer
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, path.join(__dirname, 'uploads'));
@@ -47,9 +44,7 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
-
 const upload = multer({ storage: storage });
-
 // Fonction de connexion à MongoDB
 const connectDB = async () => {
   try {
@@ -63,14 +58,12 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
-
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173', 
-  'https://naya-nine.vercel.app',
+  'https://naya-ci.com/',
   'https://naya1.onrender.com'   
 ];
-
 const corsOptions = {
   origin: (origin, callback) => {
     // Autoriser les requêtes sans origin (comme Postman, curl)
@@ -88,7 +81,6 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200
 };
-
 // Middlewares globaux
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -100,11 +92,9 @@ app.use((req, res, next) => {
   console.log(`📨 ${req.method} ${req.path}`);
   next();
 });
-
 // Montage des routeurs
 app.use('/api/commandes', commandeRouter);
 app.use('/api/manager', managerRouter);
-
 // Route de test pour vérifier l'API commandes
 app.get('/api/commandes/test', (req, res) => {
   res.json({ 
@@ -113,7 +103,6 @@ app.get('/api/commandes/test', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-
 // Route de test spécifique pour guest
 app.get('/api/commandes/guest/test', (req, res) => {
   res.json({ 
@@ -130,7 +119,6 @@ app.get('/api/test', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-
 // Connexion à la base de données
 (async () => {
   try {
@@ -146,7 +134,6 @@ app.get('/api/test', (req, res) => {
     process.exit(1);
   }
 })();
-
 // Middleware de nettoyage/normalisation du numéro de téléphone
 app.use((req, res, next) => {
   const phoneRoutes = [
@@ -173,20 +160,16 @@ app.use((req, res, next) => {
   }
   next();
 });
-
 const validatePhone = (phone) => /^225(01|05|07)\d{8}$/.test(phone);
-
 // Routes d'authentification
 app.post('/api/auth/check-user', async (req, res) => {
   try {
     const { phone, role } = req.body;
-    
     if (!validatePhone(phone)) {
       return res.status(400).json({ 
         message: "Numéro invalide. Format attendu: 10 chiffres après 225 (ex: 2250700000000)" 
       });
     }
-    
     const user = await User.findOne({ phone, role });
     res.json({ exists: !!user });
   } catch (error) {
@@ -194,7 +177,6 @@ app.post('/api/auth/check-user', async (req, res) => {
     res.status(500).json({ error: 'Erreur interne du serveur' });
   }
 });
-
 app.post('/api/auth/register', async (req, res) => {
   try {
     let { fullName, phone, email = '', password, adresse = '', role = 'client' } = req.body;
@@ -278,7 +260,6 @@ app.post('/api/auth/register', async (req, res) => {
     });
   }
 });
-
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { identifier, password, role } = req.body;
@@ -286,7 +267,6 @@ app.post('/api/auth/login', async (req, res) => {
     if (!identifier || !password || !role) {
       return res.status(400).json({ message: 'Tous les champs sont requis' });
     }
-    
     const normalizePhone = (phone) => {
       const cleaned = (phone || '').replace(/\D/g, '');
       if (cleaned.length === 10 && ['01','05','07'].includes(cleaned.substring(0,2))) {
@@ -296,31 +276,25 @@ app.post('/api/auth/login', async (req, res) => {
         return cleaned;
       }
       return null;
-    };
-    
+    }; 
     const normalizedPhone = normalizePhone(identifier);
-    
     if (!normalizedPhone) {
       return res.status(400).json({ message: 'Numéro de téléphone invalide' });
     }
-    
     const user = await User.findOne({ phone: normalizedPhone, role });
     
     if (!user) {
       return res.status(401).json({ message: 'Identifiants incorrects ou rôle invalide' });
     }
-    
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Identifiants incorrects' });
     }
-    
     const token = jwt.sign(
       { userId: user._id }, 
       process.env.JWT_SECRET, 
       { expiresIn: '30d' }
     );
-    
     res.json({
       _id: user._id,
       fullName: user.fullName,
@@ -335,7 +309,6 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la connexion' });
   }
 });
-
 // Route pour récupérer les commandes d'un utilisateur
 app.get('/api/commandes/user/:userId', protect, async (req, res) => {
   try {
@@ -358,15 +331,12 @@ app.get('/api/commandes/user/:userId', protect, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
-
 // Route pour calculer le prix de livraison
 app.get('/api/calculate-delivery-price', async (req, res) => {
   const { origin, destination } = req.query;
-
   if (!origin || !destination) {
     return res.status(400).json({ error: 'Les adresses d\'origine et de destination sont requises' });
   }
-
   try {
     const client = new Client({});
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
@@ -375,14 +345,11 @@ app.get('/api/calculate-delivery-price', async (req, res) => {
       client.geocode({ params: { address: origin + ', Abidjan, Côte d\'Ivoire', key: apiKey } }),
       client.geocode({ params: { address: destination + ', Abidjan, Côte d\'Ivoire', key: apiKey } })
     ]);
-
     const originLocation = originGeocode.data.results[0]?.geometry?.location;
     const destLocation = destGeocode.data.results[0]?.geometry?.location;
-
     if (!originLocation || !destLocation) {
       return res.status(400).json({ error: 'Impossible de localiser une des adresses' });
     }
-
     const distanceResponse = await client.distancematrix({
       params: {
         origins: [`${originLocation.lat},${originLocation.lng}`],
@@ -392,16 +359,12 @@ app.get('/api/calculate-delivery-price', async (req, res) => {
         region: 'ci'
       }
     });
-
     const distance = distanceResponse.data.rows[0]?.elements[0]?.distance?.value;
-
     if (!distance) {
       return res.status(400).json({ error: 'Impossible de calculer la distance' });
     }
-
     const distanceKm = distance / 1000;
     const price = 1000 + (100 * distanceKm);
-
     res.json({
       distance: distanceKm.toFixed(2) + ' km',
       price: Math.round(price),
@@ -413,14 +376,12 @@ app.get('/api/calculate-delivery-price', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors du calcul du prix' });
   }
 });
-
 // Route d'accueil
 app.get('/', (req, res) => res.json({ 
   status: 'success', 
   message: 'API NAYA Livraison', 
   version: '1.0.0' 
 }));
-
 // Route 404 - Doit être la dernière route
 app.use((req, res) => {
   console.log(`❌ Route non trouvée: ${req.method} ${req.path}`);
@@ -431,7 +392,6 @@ app.use((req, res) => {
     method: req.method
   });
 });
-
 // Gestion des erreurs globale
 app.use((error, req, res, next) => {
   console.error('🔥 Erreur serveur:', error.stack);
@@ -442,28 +402,24 @@ app.use((error, req, res, next) => {
       details: error.message
     });
   }
-  
   if (error.name === 'CastError') {
     return res.status(400).json({
       error: 'ID invalide',
       details: 'Le format de l\'ID est incorrect'
     });
   }
-  
   if (error.name === 'JsonWebTokenError') {
     return res.status(401).json({
       error: 'Token invalide',
       details: 'Le token d\'authentification est invalide'
     });
   }
-  
   if (error.name === 'TokenExpiredError') {
     return res.status(401).json({
       error: 'Token expiré',
       details: 'Le token d\'authentification a expiré'
     });
   }
-  
   // Erreur par défaut
   res.status(500).json({
     error: 'Erreur interne du serveur',

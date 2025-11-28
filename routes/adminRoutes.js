@@ -28,7 +28,6 @@ router.get('/stats', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
-
 // Journal d'activité
 router.get('/activity-logs', adminProtect, async (req, res) => {
   try {
@@ -53,7 +52,6 @@ router.get('/activity-logs', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
-
 // Gestion des managers
 router.get('/managers', adminProtect, async (req, res) => {
   try {
@@ -65,7 +63,6 @@ router.get('/managers', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
-
 router.post('/managers', adminProtect, async (req, res) => {
   try {
     const { fullName, phone, email, password } = req.body;
@@ -82,7 +79,6 @@ router.post('/managers', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur création manager' });
   }
 });
-
 router.delete('/managers/:id', adminProtect, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
@@ -91,7 +87,6 @@ router.delete('/managers/:id', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur suppression manager' });
   }
 });
-
 // Paramètres admin
 router.get('/settings', adminProtect, async (req, res) => {
   try {
@@ -101,7 +96,6 @@ router.get('/settings', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
-
 router.put('/settings', adminProtect, async (req, res) => {
   try {
     const settings = await AdminSettings.findOneAndUpdate(
@@ -114,5 +108,4 @@ router.put('/settings', adminProtect, async (req, res) => {
     res.status(500).json({ error: 'Erreur mise à jour' });
   }
 });
-
 export default router;

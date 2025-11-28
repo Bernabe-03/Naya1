@@ -9,12 +9,7 @@ export const getCoursiers = async (req, res) => {
     console.log('🔍 Début récupération coursiers...');
     const coursiers = await Coursier.find().sort({ nomComplet: 1 });
     console.log(`✅ ${coursiers.length} coursiers trouvés`);
-    
-    // CORRECTION: Renvoyer directement le tableau de coursiers ou l'objet enveloppé
-    // Pour assurer que le frontend reçoit un tableau (si il ne lit pas la propriété .data)
-    // On conserve ici la structure enveloppée mais on s'assure que le champ data est présent.
-    // L'idéal serait de renvoyer res.json(coursiers); si toutes les fonctions utilitaires
-    // de l'API le permettent.
+
     // ****************************************************************************
     // ÉTANT DONNÉ LA NATURE DE L'ERREUR DE FRONTEND, ON OPTE POUR LE RENVOI DIRECT:
     res.json(coursiers); 
@@ -31,7 +26,6 @@ export const getCoursiers = async (req, res) => {
     });
   }
 };
-
 // Même format pour l'historique
 export const getManagerInbox = async (req, res) => {
   try {
@@ -50,7 +44,6 @@ export const getManagerInbox = async (req, res) => {
     });
   }
 };
-
 // Fonction createCoursier (Non modifiée - Déjà correcte)
 export const createCoursier = async (req, res) => {
   try {
@@ -113,7 +106,6 @@ export const createCoursier = async (req, res) => {
     });
   }
 };
-
 // Fonction updateCoursier (Non modifiée - Déjà correcte)
 export const updateCoursier = async (req, res) => {
   try {
@@ -186,7 +178,6 @@ export const updateCoursier = async (req, res) => {
     });
   }
 };
-
 export const updateCoursierStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -234,7 +225,6 @@ export const updateCoursierStatus = async (req, res) => {
     });
   }
 };
-
 export const deleteCoursier = async (req, res) => {
   try {
     const { id } = req.params;
@@ -269,7 +259,6 @@ export const deleteCoursier = async (req, res) => {
     });
   }
 };
-
 // Fonction pour récupérer l'historique des commandes traitées (Non modifiée - Déjà correcte)
 export const getOrderHistory = async (req, res) => {
   try {
@@ -302,7 +291,6 @@ export const getOrderHistory = async (req, res) => {
     });
   }
 };
-
 // NOUVEAU : Fonction pour récupérer les commandes restaurées - CORRIGÉE (ajout d'un tableau dans l'erreur)
 export const getRestoredOrders = async (req, res) => {
   try {
@@ -329,7 +317,6 @@ export const getRestoredOrders = async (req, res) => {
     });
   }
 };
-
 export const addToManagerInbox = async (req, res) => {
   try {
     const { message, sender } = req.body;
@@ -349,7 +336,6 @@ export const addToManagerInbox = async (req, res) => {
     res.status(500).json({ error: "Erreur serveur" });
   }
 };
-
 export const getPendingOrders = async (req, res) => {
   try {
     const commandes = await Commande.find({ 
@@ -369,158 +355,157 @@ export const getPendingOrders = async (req, res) => {
 };
 
 export const assignCoursier = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { coursier, status } = req.body;
-  
-      console.log('🔍 Début assignation coursier:', { id, coursier, status });
-  
-      // Validation robuste des données
-      if (!coursier || typeof coursier !== 'object') {
-        return res.status(400).json({ 
-          success: false,
-          error: "Données du coursier manquantes ou invalides" 
-        });
-      }
-  
-      if (!coursier.nomComplet || !coursier.telephone) {
-        return res.status(400).json({ 
-          success: false,
-          error: "Les informations du coursier (nom et téléphone) sont obligatoires" 
-        });
-      }
-  
-      // Recherche de la commande avec gestion d'erreur améliorée
-      let commande;
-      try {
-        commande = await Commande.findById(id)
-          .populate('expedition')
-          .populate('destination')
-          .populate('colis')
-          .populate('userId');
-      } catch (dbError) {
-        console.error('❌ Erreur base de données:', dbError);
-        return res.status(500).json({ 
-          success: false,
-          error: "Erreur d'accès à la base de données" 
-        });
-      }
-  
-      if (!commande) {
-        console.log('❌ Commande non trouvée:', id);
-        return res.status(404).json({ 
-          success: false,
-          error: "Commande non trouvée" 
-        });
-      }
-  
-      console.log('✅ Commande trouvée:', commande.commandeId);
-  
-      // Mise à jour de la commande
-      try {
-        commande.status = status || "En cours";
-        commande.coursier = {
-          nomComplet: coursier.nomComplet,
-          telephone: coursier.telephone
-        };
-        commande.dateAssignation = new Date();
-        
-        await commande.save();
-        console.log('✅ Commande mise à jour avec succès');
-      } catch (updateError) {
-        console.error('❌ Erreur mise à jour commande:', updateError);
-        return res.status(500).json({ 
-          success: false,
-          error: "Erreur lors de la mise à jour de la commande" 
-        });
-      }
-  
-      // Construction du message WhatsApp
-      const messagePourDestinataire = `🚚 **NAYA LIVRAISON - VOTRE COMMANDE EST EN ROUTE !** 🚚
-  
-  Bonjour ${commande.destination?.nomComplet || 'cher client'},
-  
-  Nous sommes ravis de vous informer que votre commande #${commande.commandeId} a été assignée à un coursier et est en cours de livraison !
-  
-  📦 **DÉTAILS DE LA COMMANDE :**
-  • Numéro de commande : #${commande.commandeId}
-  • Expéditeur : ${commande.expedition?.nomComplet || 'Non spécifié'}
-  • Description du colis : ${commande.colis?.description || 'Non spécifiée'}
-  • Type de colis : ${commande.colis?.type || 'Non spécifié'}
-  
-  👨‍💼 **VOTRE COURSIER :**
-  • Nom : ${coursier.nomComplet}
-  • Téléphone : ${coursier.telephone}
-  
-  📅 **LIVRAISON PRÉVUE :**
-  • Date : ${commande.colis?.dateLivraison ? new Date(commande.colis.dateLivraison).toLocaleDateString('fr-FR') : 'À confirmer'}
-  • Heure : ${commande.colis?.heureLivraison || 'À confirmer'}
-  
-  📍 **ADRESSE DE LIVRAISON :**
-  ${commande.destination?.adresse || 'Adresse non spécifiée'}
-  
-  Le coursier vous contactera directement pour confirmer la livraison. Vous pouvez également le joindre au ${coursier.telephone}.
-  
-  Merci pour votre confiance ! ✨
-  
-  — L'équipe NAYA Livraison`;
-  
-      // Enregistrement dans l'historique
-      try {
-        const inboxItem = new ManagerInbox({
-          type: 'commande',
-          action: 'assignation_coursier',
-          commandeId: commande.commandeId,
-          client: commande.expedition?.nomComplet || 'Client inconnu',
-          date: new Date(),
-          details: `Coursier assigné: ${coursier.nomComplet} (${coursier.telephone})`,
-          status: 'done',
-          // ⭐ CORRECTION : Utilisation de nomComplet cohérent ⭐
-          coursier: {
-            nomComplet: coursier.nomComplet,  // Corrigé pour correspondre au schéma
-            telephone: coursier.telephone
-          },
-          expedition: {
-            nomComplet: commande.expedition?.nomComplet,
-            telephone: commande.expedition?.telephone,
-            adresse: commande.expedition?.adresse
-          },
-          destination: {
-            nomComplet: commande.destination?.nomComplet,
-            whatsapp: commande.destination?.whatsapp,
-            adresse: commande.destination?.adresse
-          },
-          colis: {
-            description: commande.colis?.description,
-            type: commande.colis?.type,
-            dateLivraison: commande.colis?.dateLivraison,
-            heureLivraison: commande.colis?.heureLivraison
-          },
-          messageEnvoye: messagePourDestinataire
-        });
-  
-        await inboxItem.save();
-        console.log('✅ Entrée historique créée');
-      } catch (inboxError) {
-        console.error('❌ Erreur création historique:', inboxError);
-        // On ne bloque pas l'assignation si l'historique échoue
-      }
-  
-      res.json({
-        success: true,
-        message: "Coursier assigné avec succès",
-        commande,
-        whatsappMessage: messagePourDestinataire
-      });
-  
-    } catch (error) {
-      console.error("❌ Erreur générale assignation coursier:", error);
-      res.status(500).json({ 
+  try {
+    const { id } = req.params;
+    const { coursier, status } = req.body;
+
+    console.log('🔍 Début assignation coursier:', { id, coursier, status });
+
+    // Validation robuste des données
+    if (!coursier || typeof coursier !== 'object') {
+      return res.status(400).json({ 
         success: false,
-        error: "Erreur lors de l'assignation du coursier",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: "Données du coursier manquantes ou invalides" 
       });
     }
+
+    if (!coursier.nomComplet || !coursier.telephone) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Les informations du coursier (nom et téléphone) sont obligatoires" 
+      });
+    }
+
+    // Recherche de la commande avec gestion d'erreur améliorée
+    let commande;
+    try {
+      commande = await Commande.findById(id)
+        .populate('expedition')
+        .populate('destination')
+        .populate('colis')
+        .populate('userId');
+    } catch (dbError) {
+      console.error('❌ Erreur base de données:', dbError);
+      return res.status(500).json({ 
+        success: false,
+        error: "Erreur d'accès à la base de données" 
+      });
+    }
+
+    if (!commande) {
+      console.log('❌ Commande non trouvée:', id);
+      return res.status(404).json({ 
+        success: false,
+        error: "Commande non trouvée" 
+      });
+    }
+
+    console.log('✅ Commande trouvée:', commande.commandeId);
+
+    // Mise à jour de la commande
+    try {
+      commande.status = status || "En cours";
+      commande.coursier = {
+        nomComplet: coursier.nomComplet,
+        telephone: coursier.telephone
+      };
+      commande.dateAssignation = new Date();
+      
+      await commande.save();
+      console.log('✅ Commande mise à jour avec succès');
+    } catch (updateError) {
+      console.error('❌ Erreur mise à jour commande:', updateError);
+      return res.status(500).json({ 
+        success: false,
+        error: "Erreur lors de la mise à jour de la commande" 
+      });
+    }
+
+    // ⭐⭐ CORRECTION : Construction du message WhatsApp avec les bonnes données ⭐⭐
+    const messagePourDestinataire = `🚚 **NAYA SERVICE DE LIVRAISON!** 🚚
+
+Bonjour ${commande.destination?.nomComplet || 'cher client'},
+
+Nous sommes ravis de vous informer que votre commande #${commande.commandeId} a été assignée à un coursier et est en cours de livraison !
+
+📦 **DÉTAILS DE LA COMMANDE :**
+• Numéro de commande : #${commande.commandeId}
+• Expéditeur : ${commande.expedition?.nomComplet || 'Non spécifié'}
+• Description du colis : ${commande.colis?.description || 'Non spécifiée'}
+• Type de colis : ${commande.colis?.type || 'Non spécifié'}
+
+👨‍💼 **VOTRE COURSIER :**
+• Nom : ${coursier.nomComplet}
+• Téléphone : ${coursier.telephone}
+
+📅 **LIVRAISON PRÉVUE :**
+• Date : ${commande.colis?.dateLivraison ? new Date(commande.colis.dateLivraison).toLocaleDateString('fr-FR') : 'À confirmer'}
+• Heure : ${commande.colis?.heureLivraison || 'À confirmer'}
+
+📍 **ADRESSE DE LIVRAISON :**
+${commande.destination?.adresse || 'Adresse non spécifiée'}
+
+Le coursier vous contactera directement pour confirmer la livraison. Vous pouvez également le joindre au ${coursier.telephone}.
+
+Merci pour votre confiance ! ✨
+
+— L'équipe NAYA Livraison`;
+
+    // Enregistrement dans l'historique
+    try {
+      const inboxItem = new ManagerInbox({
+        type: 'commande',
+        action: 'assignation_coursier',
+        commandeId: commande.commandeId,
+        client: commande.expedition?.nomComplet || 'Client inconnu',
+        date: new Date(),
+        details: `Coursier assigné: ${coursier.nomComplet} (${coursier.telephone})`,
+        status: 'done',
+        coursier: {
+          nomComplet: coursier.nomComplet,  
+          telephone: coursier.telephone
+        },
+        expedition: {
+          nomComplet: commande.expedition?.nomComplet,
+          telephone: commande.expedition?.telephone,
+          adresse: commande.expedition?.adresse
+        },
+        destination: {
+          nomComplet: commande.destination?.nomComplet,
+          whatsapp: commande.destination?.whatsapp,
+          adresse: commande.destination?.adresse
+        },
+        colis: {
+          description: commande.colis?.description,
+          type: commande.colis?.type,
+          dateLivraison: commande.colis?.dateLivraison,
+          heureLivraison: commande.colis?.heureLivraison
+        },
+        messageEnvoye: messagePourDestinataire
+      });
+
+      await inboxItem.save();
+      console.log('✅ Entrée historique créée');
+    } catch (inboxError) {
+      console.error('❌ Erreur création historique:', inboxError);
+      // On ne bloque pas l'assignation si l'historique échoue
+    }
+
+    res.json({
+      success: true,
+      message: "Coursier assigné avec succès",
+      commande,
+      whatsappMessage: messagePourDestinataire
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur générale assignation coursier:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Erreur lors de l'assignation du coursier",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
 
 export const validateOrder = async (req, res) => {
@@ -597,7 +582,6 @@ export const validateOrder = async (req, res) => {
     });
   }
 };
-
 export const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -637,7 +621,6 @@ export const cancelOrder = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-
 export const getTrash = async (req, res) => {
   try {
     const trashItems = await TrashItem.find().sort({ deletedAt: -1 });
@@ -647,7 +630,6 @@ export const getTrash = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-
 export const restoreFromTrash = async (req, res) => {
   try {
     const { id } = req.params;
@@ -683,7 +665,6 @@ export const restoreFromTrash = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-
 export const emptyTrash = async (req, res) => {
   try {
     await TrashItem.deleteMany({});
@@ -693,7 +674,6 @@ export const emptyTrash = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-
 export const moveToTrash = async (req, res) => {
   try {
     const { itemId, itemType } = req.body;
@@ -728,7 +708,6 @@ export const moveToTrash = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-
 // Route pour marquer une commande comme vue
 export const markOrderAsViewed = async (req, res) => {
   try {
