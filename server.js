@@ -61,7 +61,7 @@ const connectDB = async () => {
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173', 
-  'https://naya-ci.com/',
+  'https://naya-ci.com',
   'https://naya1.onrender.com'   
 ];
 const corsOptions = {
